@@ -1,0 +1,45 @@
+import requests
+from bs4 import BeautifulSoup
+import pymysql
+import re
+def url_country():
+    url = "https://www.anjuke.com/sy-city.html"
+    headers = {
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36'}
+    cookies_sss = "aQQ_ajkguid=3989BF6B-5990-3521-8230-D18A277F7B8C; 58tj_uuid=f087aab4-a939-46f8-8d47-54db9ba00899; als=0; propertys=kj5xvn-pj0494_; lps=http%3A%2F%2Fsh.zu.anjuke.com%2F%7C; twe=2; sessid=DCDAC94F-70A2-2ABD-E72D-649940AD635A; wmda_uuid=9f63528eb0ccbe98cd59c7f35779f77f; wmda_new_uuid=1; wmda_visited_projects=%3B6289197098934; _ga=GA1.2.629837343.1543893903; _gid=GA1.2.200055114.1543893903; init_refer=; new_uv=6; new_session=0; wmda_session_id_6289197098934=1543904131626-af178034-afb1-56d6; __xsptplusUT_8=1; ctid=17; ajk_member_captcha=770f588d6441c64a4e34a48ed0626d1e; ajk_member_id=65307991; ajk_member_name=%E5%A4%9C%E9%A3%8E%E6%83%85%E6%AE%87; ajk_member_key=da6157498f4c52278b048c046ffa90cc; ajk_member_time=1575440880; aQQ_ajkauthinfos=72ydCKgpTQfHuPJqAYS8bWiBbh69uUnwz2ww1q4SKNMBSxBezzDopCJn1vnHSAT54BtXYkPihGG%2B0A1Ch369; lui=65307991%3A1; __xsptplus8=8.6.1543903881.1543904895.77%232%7Cwww.baidu.com%7C%7C%7C%25E7%25A7%259F%25E6%2588%25BF%7C%23%23s0b2TsQeSJq17aTfUoC2tgX1jdppmiM1%23"
+    cookies = {}
+    for line in cookies_sss.split(';'):
+        key, value = line.split('=', 1)
+        cookies[key] = value
+    res = requests.get(url, headers=headers, cookies=cookies)
+    ret = res.content.decode("utf-8")
+    ret_re = re.findall(r'<a href="https://[a-z]{2,10}.anjuke.com">[\u4e00-\u9fa5]{2,4}</a>', ret)
+    list_country = []
+    for x in range(len(ret_re)):
+        ret_re1 = re.findall(r'https://[a-z]{2,10}.anjuke.com|[\u4e00-\u9fa5]{2,4}', ret_re[x])
+        list_country.append(ret_re1)
+    # list_country1 = []
+    # list_url = []
+    db = pymysql.connect(host="localhost", user="root", passwd="2152132", db="blake", charset="utf8")
+    cursor = db.cursor()
+    cursor.execute("DROP TABLE IF EXISTS anjuke")
+    sql = '''create table anjuke(
+              xima_name char(100),
+              xima_src char(100)
+    )'''
+    cursor.execute(sql)
+    for i in range(int(((len(list_country) / 2 - 1)))):
+        sql1 = '''insert into anjuke(xima_name,xima_src) values(%s,%s)''' % (
+        "'" + list_country[i][0] + "'", "'" + list_country[i][1] + "'")
+        print(sql1)
+        cursor.execute(sql1)
+        db.commit()
+    db.close()
+
+
+    # for i in range(len(list_country)):
+    #     list_url.append(list_country[i][0])
+    #     list_country1.append(list_country[i][1])
+    # print(list_country1,list_url)
+url_country()
+
