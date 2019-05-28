@@ -1,0 +1,101 @@
+#金头网茭白价格
+import requests
+import re
+import json,pymysql
+from bs4 import BeautifulSoup
+def url_one():
+    global list_times2
+    url = "https://jiage.cngold.org/shucai/jiaobai/list_4072_all.html"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36'}
+    res = requests.get(url, headers=headers).content.decode("utf-8")
+    soup = BeautifulSoup(res, 'lxml')
+    # reg1 = re.compile("<[^>]*>")
+    # content = reg1.sub('',soup.prettify())
+    # re_soup = re.compile(r'[0-9]{4}\-[0-9]{2}\-[0-9]{2}',str(content))
+    # 提取所有符合条件的DIV
+    find_soup = soup.find_all("div", class_="history_news_content")
+    re_com = re.compile(
+        r'[0-9]{4}\-[0-9]{2}-[0-9]{2}</a></li>|<li>|<div class="history_news_content">|<a href="|<ul>|</ul>|">|</div>')
+
+    # 清除HTML标签，并清除空格
+    # reg1 = re.compile("<[^>]*>")
+    list_time = list(map(str, find_soup))
+    list_soup_time = []
+    for x in list_time:
+        content = re_com.sub('', x)
+        list_soup_time.append(content)
+    list_times = []
+    # 多条数组转换成一条数组
+    for y in list_soup_time:
+        y = str.split(y)
+        if y:
+            list_times.append(y)
+    list_times2 = []
+    for a in list_times:
+        for x in a:
+            list_times2.append(x)
+url_one()
+finally_list = []
+def url_two():
+    global finally_list
+    for x in list_times2:
+        url = x
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36'}
+        res = requests.get(url, headers=headers).content.decode("utf-8")
+        json.dumps(res)
+        re_url=r'https://jiage.cngold.org/c/.*?/.*?.html|http://jiage.cngold.org/c/.*?/.*?.html'
+        finally_url = re.findall(re_url,res)
+        finally_list.append(finally_url)
+url_two()
+def times():
+    global new_time
+    new_time = []
+    for x in list_times2:
+        re_time = re.compile(r'https://jiage.cngold.org/shucai/jiaobai/|/.*?.html')
+        time = re_time.sub('',x)
+        new_time.append(time)
+times()
+number = 0
+def name_Three():
+    global number
+    for finn in finally_list:
+        url = finn[0]
+        print(url)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36'}
+        res = requests.get(url, headers=headers).content.decode("utf-8")
+        soup = BeautifulSoup(res, "lxml")
+        soup_pice = soup.find("div", class_="art_content")
+        re_sub = re.compile(
+            r'<div class="art_content" id="zoom">|<p>.*?</p>|<table border="0" cellpadding="0" cellspacing="0">|<tr>|</tr>|<th class=".*?" colspan=".*?">.*?</th>|<th>.*?</th>|<td>|</td>|</table>|</div>')
+        soup_pice_list = list(map(str, soup_pice))
+        soup_pice_font = []
+        for x in soup_pice_list:
+            resssss = re_sub.sub('', x)
+            resssss = str.strip(resssss)
+            soup_pice_font.append(resssss)
+        your_list = [x for x in soup_pice_font if x != '']
+        name_price = re.findall(r'[\u4e00-\u9fa5]|[1-9]\d*\.\d*|0\.\d*[1-9]\d*|[1-9]\d*', your_list[0])
+        name_time = new_time[number]
+        name_jiaobai = name_price[0] + name_price[1]
+        name_prices = name_price[2]
+        name_yuan_jin = name_price[3] + '/' + name_price[4]
+        list_all = []
+        list_all.append(name_time)
+        list_all.append(name_jiaobai)
+        list_all.append(name_prices)
+        list_all.append(name_yuan_jin)
+        print(list_all)
+        db = pymysql.connect(host="localhost", user="root", passwd="2152132", db="blake", charset="utf8")
+        cursor = db.cursor()
+        sql = '''insert into jiaobai value (%s,%s,%s,%s)''' % (
+            "'" + list_all[0] + "'", "'" + list_all[1] + "'", "'" + list_all[2] + "'", "'" + list_all[3] + "'")
+        print(sql)
+        cursor.execute(sql)
+        db.commit()
+        db.close()
+        number +=1
+        print(number)
+
+name_Three()
