@@ -1,0 +1,53 @@
+
+import requests
+import json
+import pymysql
+import re
+#1、找到URL
+start_url = "https://www.ximalaya.com/revision/play/album?albumId={}&pageNum={}&sort=-1&pageSize=30"
+ablu_url = "https://www.ximalaya.com/revision/category/queryCategoryPageAlbums?category=yinyue&subcategory=&meta=&sort=0&page=1&perPage=30"
+
+list_number = []
+def albu():
+    headers = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36'}
+    r = requests.get(ablu_url,headers = headers)
+    ret = r.content.decode().encode('utf-8')
+    reques = json.loads(ret)
+    for mess in reques['data']['albums']:
+        list_number.append(mess['albumId'])
+albu()
+#2、访问URL获取对应的数据
+sql_xima = []
+db = pymysql.connect(host="localhost", user="root", passwd="2152132", db="blake", charset="utf8")
+cursor = db.cursor()
+cursor.execute("DROP TABLE IF EXISTS xima1")
+sql = '''create table xima1(
+             xima_name char(100),
+             xima_src char(100),
+             xima_index int
+   )'''
+cursor.execute(sql)
+def xima():
+    for ms in list_number:
+        for i in range(1, 11):
+            url = start_url.format(ms,i)
+            # 模拟浏览器
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKi t/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36'}
+            r = requests.get(url, headers=headers)
+            ret = r.content.decode().encode('utf-8')
+            # 3、解析数据
+            reques = json.loads(ret)
+            for mess in reques["data"]["tracksAudioPlay"]:
+                sql_xima.append(mess["src"])
+                sql_xima.append(mess["trackName"])
+                sql_xima.append(mess["index"])
+            print(sql_xima)
+            for i in range(int(((len(sql_xima) / 3 - 2)))):
+                sql1 = '''insert into xima1(xima_name,xima_src,xima_index) values(%s,%s,%s)''' % ("'" + sql_xima[i * 3] + "'", "'" + sql_xima[3 * i + 1] + "'",+sql_xima[int(3*i+2)])
+                print(sql1)
+                cursor.execute(sql1)
+                db.commit()
+            # 4、保存数据
+xima()
+
