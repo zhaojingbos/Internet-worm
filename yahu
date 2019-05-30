@@ -1,0 +1,104 @@
+import requests
+import urllib.request
+import urllib.parse
+import json
+import hashlib
+from datetime import datetime
+import re
+from bs4 import BeautifulSoup
+
+headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36'}
+list_link = []
+list_title = []
+list_time = []
+list_typ = []
+list_chinese_title = []
+i = 0
+for x in range(1,4):
+    url = "https://tw.stock.yahoo.com/q/h?s=2317&pg={}".format(x)
+    res = requests.get(url, headers=headers).content
+    # 解析数据
+    soup = BeautifulSoup(res, 'lxml')
+    soup_table = soup.find("table", class_="yui-text-left")
+    # 获取标题
+    for titles in soup_table.find_all('a'):
+        title = titles.get_text()
+        list_title.append(title)
+    # 获取URL：
+    for link in soup_table.find_all('a'):
+        new_url = "https://tw.stock.yahoo.com/" + link.get('href')
+        list_link.append(new_url)
+    # 获取时间和typ:
+    for times in soup_table.find_all('font'):
+        time = times.get_text().replace("(", "")
+        time = time.replace(")", "")
+        time = time.split(" ")
+        list_time.append(time[0])
+        list_typ.append(time[1])
+print("时间数组:%s"%(list_time))
+print("URL数组:%s"%(list_link))
+print("繁体字标题数组:%s"%(list_title))
+print("报道部门数组:%s"%(list_typ))
+
+#去除标题长度小于8：
+for title_lenght in list_title:
+    if len(title_lenght) < 8:
+        list_title.remove(title_lenght)
+        list_typ.remove(list_typ[i])
+        list_link.remove(list_link[i])
+        list_time.remove(list_time[i])
+    i +=1
+#繁体字转换成简体中文
+# is_chinese 判断一个字符串是否是汉字
+def is_chinese(uchar):
+    for _char in uchar:
+        if '\u4e00' <= _char <= '\u9fa5':
+            return True
+    return False
+# translate 调用有道词典翻译功能
+def translate(name_title):
+    now = datetime.now()
+    now = now.timestamp()
+
+    a = re.match(r'(\d+)\.(\d+)', str(now))
+    b = a.group(1) + a.group(2)
+    f = b[:13]  # 时间戳前13位
+
+    c = "rY0D^0'nM0}g5Mm1z%1G4"
+    u = 'fanyideskweb'
+    creatmd5 = u + name_title + f + c
+    # 生成md5
+    md5 = hashlib.md5()
+    md5.update(creatmd5.encode('utf-8'))
+    sign = md5.hexdigest()
+    url = 'http://fanyi.youdao.com/translate?smartresult=dict&smartresult=rule&sessionFrom='
+    data = {}
+    data['i'] = name_title
+    data['from'] = 'AUTO'
+    data['to'] = 'AUTO'
+    data['smartresult'] = 'dict'
+    data['client'] = 'fanyideskweb'
+    data['salt'] = f
+    data['sign'] = sign
+    data['doctype'] = 'json'
+    data['version'] = '2.1'
+    data['keyfrom'] = 'fanyi.web'
+    data['action'] = 'FY_BY_CLICKBUTTION'
+    data['typoResult'] = 'true'
+    data = urllib.parse.urlencode(data).encode('utf-8')
+    req = urllib.request.Request(url=url, data=data, method='POST', headers=headers)
+    # 想要使用动态追加头headers，必须使Request类实例化，对象有动态追加函数req.add_headers()的方法
+    response = urllib.request.urlopen(req)
+    translateResult = response.read().decode('utf-8')
+    target = json.loads(translateResult)
+    new_china_name = target['translateResult'][0][0]['tgt']
+    return new_china_name
+# translate_chinese 执行翻译操作
+def translate_chinese():
+    for title in list_title:
+        new_title = translate(title)
+        if is_chinese(new_title) == False:
+            new_title = translate(new_title)
+        list_chinese_title.append(new_title)
+translate_chinese()
+print("翻译成中文数组:%s"%(list_chinese_title))
